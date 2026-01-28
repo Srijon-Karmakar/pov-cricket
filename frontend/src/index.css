@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------- Global Reset ---------------- */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: #020617;
+  color: white;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Disable text selection for game feel */
+* {
+  user-select: none;
+}
+
+/* Allow inputs later */
+input,
+textarea {
+  user-select: text;
+}
+
+/* ---------------- Canvas Safety ---------------- */
+canvas {
+  display: block;
+  outline: none;
+}
+
+/* ---------------- HUD Utilities ---------------- */
+.glass {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.hud {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+}
