@@ -1,383 +1,332 @@
-import React, { Suspense, useMemo, useEffect, useState, useRef } from "react";
-import * as THREE from "three";
-import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
-import { Environment, ContactShadows, Html, useProgress } from "@react-three/drei";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
+// import React, { useRef, useState, useEffect, Suspense, useLayoutEffect } from 'react';
+// import { Canvas } from '@react-three/fiber';
+// import { useGLTF, Environment, PerspectiveCamera, Html } from '@react-three/drei';
+// import { Physics, RigidBody, CapsuleCollider } from '@react-three/rapier';
+// import * as THREE from 'three';
 
-/* ---------- Loader ---------- */
-function Loader() {
-  const { progress } = useProgress();
+// // --- 1. Stadium Model (Unchanged) ---
+// function Stadium({ onPointsLoaded }) {
+//   const { scene } = useGLTF('/models/cricket.glb'); 
+
+//   useEffect(() => {
+//     if (scene) {
+//       // Find points or use fallbacks
+//       const batsman = scene.getObjectByName('BatsmanPoint') || { position: new THREE.Vector3(0, 2, 0) };
+//       const bowler = scene.getObjectByName('BowlerPoint') || { position: new THREE.Vector3(0, 2, 20) };
+//       const wicket = scene.getObjectByName('WicketTarget') || { position: new THREE.Vector3(0, 0, 0) };
+
+//       onPointsLoaded({
+//         batsman: batsman.position,
+//         bowler: bowler.position,
+//         wicket: wicket.position
+//       });
+//     }
+//   }, [scene, onPointsLoaded]);
+
+//   return <primitive object={scene} />;
+// }
+
+
+// // --- 2. The Player Rig (FIXED ANGLE) ---
+// // --- The Player Rig (Horizon Fix) ---
+// // --- The Player Rig (Horizon Fix) ---
+// function BatsmanRig({ position, targetPosition }) {
+//   const cameraRef = useRef();
+
+//   // Settings for the view
+//   const EYE_HEIGHT = 0.001; // Height from ground to eyes (Crouching stance)
+  
+//   useLayoutEffect(() => {
+//     if (cameraRef.current && targetPosition) {
+//       // THE FIX: Level the view.
+//       // 1. We keep the X and Z of the bowler (to face the right direction).
+//       // 2. BUT we change the Y (height) to match the camera's own height.
+//       // This forces the camera to look parallel to the ground (at the horizon).
+      
+//       const lookAtX = targetPosition.x;
+//       const lookAtY = position.y + EYE_HEIGHT; // <--- Match Camera Height (Horizon View)
+//       const lookAtZ = targetPosition.z;
+
+//       cameraRef.current.lookAt(lookAtX, lookAtY, lookAtZ);
+//     }
+//   }, [targetPosition, position]); 
+
+//   return (
+//     <RigidBody 
+//       position={[position.x, position.y + EYE_HEIGHT, position.z]} 
+//       type="fixed" 
+//       colliders="hull"
+//     >
+//       <CapsuleCollider args={[0.8, 0.3]} />
+      
+//       <PerspectiveCamera 
+//         ref={cameraRef} 
+//         makeDefault 
+//         fov={70}  // Lower FOV (50-60) makes the pitch look more realistic/longer like on TV
+//         position={[0, 0, 0]} 
+//       />
+//     </RigidBody>
+//   );
+// }
+
+// // --- 3. Main Page ---
+// export default function Cricket3DPage() {
+//   const [points, setPoints] = useState(null);
+
+//   return (
+//     <div className="w-full h-screen bg-black relative">
+//       <Canvas>
+//         <Suspense fallback={<Html center><div className="text-white">Loading...</div></Html>}>
+//           <Environment files="/hdr/alps.hdr" background blur={0.6} />
+//           <ambientLight intensity={0.5} />
+//           <directionalLight position={[10, 10, 5]} intensity={1} />
+
+//           <Physics>
+//             <Stadium onPointsLoaded={setPoints} />
+            
+//             {/* Pass both Batsman (camera loc) and Bowler (target loc) points */}
+//             {points && (
+//               <BatsmanRig 
+//                 position={points.batsman} 
+//                 targetPosition={points.bowler} 
+//               />
+//             )}
+//           </Physics>
+//         </Suspense>
+//       </Canvas>
+      
+//       {/* Updated UI Overlay */}
+//       <div className="absolute top-4 left-4 text-white z-10 pointer-events-none select-none">
+//         <h1 className="text-xl font-bold">Batsman POV</h1>
+//         <p className="text-sm opacity-75">Fixed Camera View</p>
+//       </div>
+//     </div>
+//   );
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import React, { useRef, useState, useEffect, Suspense, useLayoutEffect } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { useGLTF, Environment, PerspectiveCamera, Html } from '@react-three/drei';
+import { Physics, RigidBody, CapsuleCollider, CuboidCollider } from '@react-three/rapier';
+import * as THREE from 'three';
+
+// --- 1. Stadium & The "Pitch" ---
+function Stadium({ onPointsLoaded }) {
+  const { scene } = useGLTF('/models/cricket.glb'); 
+
+  useEffect(() => {
+    if (scene) {
+      const batsman = scene.getObjectByName('BatsmanPoint') || { position: new THREE.Vector3(0, 2, 0) };
+      const bowler = scene.getObjectByName('BowlerPoint') || { position: new THREE.Vector3(0, 2, 20) };
+      const wicket = scene.getObjectByName('WicketTarget') || { position: new THREE.Vector3(0, 0, 0) };
+
+      onPointsLoaded({
+        batsman: batsman.position.clone(),
+        bowler: bowler.position.clone(),
+        wicket: wicket.position.clone()
+      });
+    }
+  }, [scene, onPointsLoaded]);
+
   return (
-    <Html center>
-      <div style={{ 
-          color: "white", 
-          background: "rgba(0,0,0,0.8)", 
-          padding: "12px 20px", 
-          borderRadius: "8px",
-          fontFamily: "monospace",
-          border: "1px solid rgba(255,255,255,0.2)"
-      }}>
-        LOADING {Math.round(progress)}%
-      </div>
-    </Html>
+    <group>
+      {/* Visual Model */}
+      <primitive object={scene} />
+
+      {/* PHYSICS HACK: Invisible Floor specifically for the Pitch.
+         Trimesh is too buggy for fast balls. A Box is reliable.
+         Placed at y=0, sized to cover the pitch area.
+         Friction 1.0 makes the ball "grip" the pitch (spin/cut).
+         Restitution 0.6 simulates the energy loss on impact.
+      */}
+      <RigidBody type="fixed" colliders="cuboid" friction={1.0} restitution={0.6}>
+        <CuboidCollider args={[5, 0.1, 15]} position={[0, -0.1, 10]} /> 
+      </RigidBody>
+    </group>
   );
 }
 
-/* ---------- Model Loader ---------- */
-function DracoGLBModel({ url, position, rotation, scale, onSceneReady }) {
-  const gltf = useLoader(GLTFLoader, url, (loader) => {
-    const draco = new DRACOLoader();
-    draco.setDecoderPath("/draco/");
-    draco.setDecoderConfig({ type: "js" });
-    loader.setDRACOLoader(draco);
-  });
-  
-  const cloned = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
-  const onReadyRef = useRef(onSceneReady);
-  
-  useEffect(() => { onReadyRef.current = onSceneReady; }, [onSceneReady]);
+// --- 2. The Realistic Ball ---
+function Ball({ startPos, targetPos, isBowling }) {
+  const rigidBody = useRef();
+
   useEffect(() => {
-    if (cloned) {
-        requestAnimationFrame(() => onReadyRef.current?.(cloned));
+    if (rigidBody.current && startPos && targetPos) {
+      // 1. Reset Ball to Hand
+      const releaseHeight = 2.2; // High arm action
+      const startPoint = new THREE.Vector3(startPos.x, startPos.y + releaseHeight, startPos.z);
+      
+      rigidBody.current.setTranslation(startPoint, true);
+      rigidBody.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      rigidBody.current.setAngvel({ x: 0, y: 0, z: 0 }, true);
+
+      // 2. CRICKET PHYSICS ALGORITHM
+      
+      // A. Determine Speed (KPH -> M/S)
+      // Pace: 130kph - 150kph
+      const speedKph = 130 + Math.random() * 20; 
+      const speedMs = speedKph * (1000 / 3600); // ~36 to 41 m/s
+
+      // B. Determine Length (Where it bounces)
+      // Distance from bowler release to stumps is approx 20m.
+      // Yorker: 20m, Full: 17m, Good: 14m, Short: 10m
+      const distanceToWicket = Math.abs(startPos.z - targetPos.z);
+      const landingDist = 12 + Math.random() * 6; // Random spot 12m to 18m from bowler
+      
+      // C. Determine Line (Left/Right)
+      const lineOffset = (Math.random() - 0.5) * 0.6; // Small variance left/right
+
+      // D. Calculate Target Coordinate on Floor
+      const direction = new THREE.Vector3().subVectors(targetPos, startPos).normalize();
+      const bouncePoint = new THREE.Vector3(
+        startPos.x + direction.x * landingDist + lineOffset,
+        0, // Floor
+        startPos.z + direction.z * landingDist // This assumes Z is the length axis
+      );
+
+      // E. Calculate Velocity Vector (Projectile Motion)
+      // We know: Start(x,y,z), End(x,y,z), and Horizontal Speed (speedMs)
+      
+      // Time = Distance / Speed
+      const horizDist = new THREE.Vector2(bouncePoint.x - startPoint.x, bouncePoint.z - startPoint.z).length();
+      const timeToImpact = horizDist / speedMs;
+
+      // Vx and Vz are constant components of horizontal speed
+      const velX = (bouncePoint.x - startPoint.x) / timeToImpact;
+      const velZ = (bouncePoint.z - startPoint.z) / timeToImpact;
+
+      // Vy (Vertical) uses gravity equation: d = vt + 0.5at^2
+      // Rearranged: v = (d - 0.5at^2) / t
+      // We want to drop from `releaseHeight` to `0` in `timeToImpact`
+      const gravity = -9.81;
+      const distY = 0 - startPoint.y;
+      const velY = (distY - (0.5 * gravity * Math.pow(timeToImpact, 2))) / timeToImpact;
+
+      // 3. Apply Velocity
+      rigidBody.current.setLinvel({ x: velX, y: velY, z: velZ }, true);
+
+      // 4. Add "Seam" rotation (Backspin helps stability)
+      rigidBody.current.setAngvel({ x: -10, y: 0, z: 0 }, true);
     }
-  }, [cloned]);
-
-  return <primitive object={cloned} position={position} rotation={rotation} scale={scale} />;
-}
-
-/* ---------- Camera Logic ---------- */
-function FixedPovCamera({ points }) {
-  const { camera } = useThree();
-  
-  useEffect(() => {
-    if (!points?.wicket || !points?.bowler) return;
-    
-    const wicket = points.wicket;
-    const bowler = points.bowler;
-
-    wicket.updateWorldMatrix(true, false);
-    bowler.updateWorldMatrix(true, false);
-
-    const wicketPos = new THREE.Vector3();
-    const bowlerPos = new THREE.Vector3();
-    wicket.getWorldPosition(wicketPos);
-    bowler.getWorldPosition(bowlerPos);
-
-    // Direction: From Wicket TO Bowler
-    const dir = bowlerPos.clone().sub(wicketPos).normalize();
-    
-    // Position: 10cm behind wicket, 20cm up (Stump Cam)
-    const camPos = wicketPos.clone().add(dir.clone().multiplyScalar(-0.1));
-    camPos.y += 0.2; 
-
-    camera.position.copy(camPos);
-    camera.lookAt(bowlerPos);
-    camera.updateProjectionMatrix();
-
-  }, [points, camera]);
-
-  return null;
-}
-
-/* ---------- GAME LOGIC (PURE NEWTONIAN PHYSICS) ---------- */
-function CricketGameSystem({ points }) {
-  const ballRef = useRef();
-  const shieldRef = useRef();
-  const [feedback, setFeedback] = useState(null);
-
-  // --- PHYSICS CONSTANTS ---
-  const GRAVITY = 18.0; // Slightly exaggerated gravity for visual snap
-  const BALL_RADIUS = 0.035; 
-  const BOUNCE_DAMPING = 0.65; // Ball loses 35% speed on bounce
-  const GROUND_FRICTION = 0.96; // Skids on ground
-
-  // --- GAME STATE ---
-  const state = useRef({
-    active: false,    // Is ball moving?
-    velocity: new THREE.Vector3(0,0,0), // Current Velocity
-    hasBounced: false,
-    speedFactor: 1.0, // Multiplier
-  });
-
-  // --- 1. CALCULATE THROW (Ballistics) ---
-  const startBowling = () => {
-    if (!points?.bowler || !points?.wicket || !points?.batsman) return;
-    
-    setFeedback(null);
-    const s = state.current;
-    
-    // POSITIONS
-    const startPos = new THREE.Vector3();
-    const wicketPos = new THREE.Vector3();
-    points.bowler.getWorldPosition(startPos);
-    points.wicket.getWorldPosition(wicketPos);
-
-    // 1. SETUP BALL
-    // Force release height (approx 2.2m - Bowler hand height)
-    startPos.y = 2.2; 
-    ballRef.current.position.copy(startPos);
-    ballRef.current.visible = true;
-    ballRef.current.rotation.set(0,0,0);
-
-    // 2. DETERMINE TARGET (Where to bounce)
-    // Random Length: 0 (Batsman) to 1 (Bowler). 
-    // Good length is approx 0.15 to 0.25 away from stumps in this scale
-    const lengthAlpha = 0.12 + Math.random() * 0.15; // Random Good Length
-    const lineOffset = (Math.random() - 0.5) * 0.6; // Left/Right
-    
-    const targetPos = wicketPos.clone().lerp(startPos, lengthAlpha);
-    targetPos.x += lineOffset;
-    targetPos.y = BALL_RADIUS; // Target is ON THE FLOOR
-
-    // 3. CALCULATE VELOCITY (Projectile Motion Formula)
-    // We want to hit 'targetPos' from 'startPos'.
-    // We choose a random Flight Time (Speed).
-    const distance = new THREE.Vector3(targetPos.x, 0, targetPos.z).distanceTo(new THREE.Vector3(startPos.x, 0, startPos.z));
-    
-    // Faster ball = Less time. 
-    // Random speed factor: Fast(0.5s) to Slow(0.7s)
-    const timeToTarget = 0.45 + Math.random() * 0.2; 
-    
-    // Horizontal Velocity = Distance / Time
-    const velocityHorizontal = targetPos.clone().sub(startPos);
-    velocityHorizontal.y = 0;
-    velocityHorizontal.normalize().multiplyScalar(distance / timeToTarget);
-
-    // Vertical Velocity (Vy)
-    // Formula: y = y0 + vy*t - 0.5*g*t^2
-    // We know y (TargetY), y0 (StartY), g, t. Solve for vy.
-    // vy = (y - y0 + 0.5*g*t^2) / t
-    const vy = (targetPos.y - startPos.y + 0.5 * GRAVITY * (timeToTarget * timeToTarget)) / timeToTarget;
-
-    // Combine
-    s.velocity.set(velocityHorizontal.x, vy, velocityHorizontal.z);
-    
-    // Reset State
-    s.active = true;
-    s.hasBounced = false;
-  };
-
-  // --- 2. HANDLE HIT ---
-  const handleBatSwing = (e) => {
-    e.stopPropagation(); 
-    const s = state.current;
-    if (!s.active) return; // Can't hit if not moving
-
-    const ballPos = ballRef.current.position;
-    const hitPos = e.point; 
-
-    // Timing/Accuracy Logic
-    const distance = hitPos.distanceTo(ballPos);
-    const zDiff = Math.abs(hitPos.z - ballPos.z);
-
-    // Strict timing window (0.8m depth tolerance)
-    if (zDiff > 0.8) {
-        setFeedback({ text: "TIMING!", color: "gray" });
-        return; 
-    }
-    // Strict hitbox (0.5m radius)
-    if (distance > 0.5) { 
-        setFeedback({ text: "MISS!", color: "white" });
-        return;
-    }
-
-    // --- PHYSICS REACTION (THE HIT) ---
-    // Calculate direction based on where you clicked on the "Sphere" of influence
-    const impactVector = new THREE.Vector3().subVectors(ballPos, hitPos);
-    
-    // Base drive is forward (towards bowler)
-    const shotDir = new THREE.Vector3(0, 0.15, 1);
-    
-    // Add horizontal angle (Cut/Glance)
-    shotDir.x += impactVector.x * 3.0; 
-    
-    // Add loft (only if clicked underneath)
-    if (impactVector.y > 0) {
-        shotDir.y += impactVector.y * 4.0;
-    } else {
-        // Ground shot force
-        shotDir.y = -0.1; 
-    }
-    
-    shotDir.normalize();
-
-    // Power
-    const power = (1 - distance) * 40 + 15; 
-
-    // Apply Hit Velocity
-    s.velocity.copy(shotDir.multiplyScalar(power));
-    s.hasBounced = true; // Treat hit as post-bounce logic (simple physics)
-
-    // Feedback UI
-    let msg = "SHOT!";
-    let col = "#4ade80";
-    if (shotDir.y > 0.3) { msg = "SIX!"; col = "orange"; }
-    else if (Math.abs(shotDir.x) > 0.6) { msg = "CUT"; col = "cyan"; }
-    
-    setFeedback({ text: msg, color: col });
-  };
-
-  // --- 3. PHYSICS LOOP (The Heart) ---
-  useFrame((_, delta) => {
-    const s = state.current;
-    if (!s.active) return;
-    
-    const ball = ballRef.current;
-    
-    // A. Apply Velocity
-    ball.position.addScaledVector(s.velocity, delta);
-
-    // B. Apply Gravity
-    s.velocity.y -= GRAVITY * delta;
-
-    // C. Collision Detection (Ground)
-    if (ball.position.y <= BALL_RADIUS) {
-        // HARD CONSTRAINT: Snap to floor
-        ball.position.y = BALL_RADIUS;
-        
-        // BOUNCE LOGIC
-        // Reverse Y velocity + Damping (Energy Loss)
-        s.velocity.y = -s.velocity.y * BOUNCE_DAMPING;
-        
-        // Friction (Slow down X/Z on bounce)
-        s.velocity.x *= GROUND_FRICTION;
-        s.velocity.z *= GROUND_FRICTION;
-
-        s.hasBounced = true;
-
-        // Stop rolling if too slow
-        if (s.velocity.length() < 0.2) {
-            s.active = false;
-        }
-    }
-
-    // D. Visual Rotation (Spin)
-    ball.rotation.x -= s.velocity.z * delta * 2.0;
-    ball.rotation.z += s.velocity.x * delta * 2.0;
-
-    // E. Reset if passed wicket (Missed)
-    const wicketZ = points?.wicket?.position.z || 0;
-    if (ball.position.z < wicketZ - 2) {
-         s.active = false;
-         setFeedback({ text: "BEATEN", color: "#ef4444" });
-    }
-  });
-
-  // Loop
-  useEffect(() => {
-     const interval = setInterval(() => {
-         if (!state.current.active) startBowling();
-     }, 1000);
-     return () => clearInterval(interval);
-  }, [points]);
+  }, [isBowling, startPos, targetPos]);
 
   return (
-    <>
-      <group>
-        <mesh ref={ballRef} castShadow receiveShadow>
-          <sphereGeometry args={[BALL_RADIUS, 32, 32]} />
-          <meshStandardMaterial 
-            color="#8b0000" 
-            roughness={0.3} 
-            metalness={0.1}
-            envMapIntensity={2.0}
-          />
-        </mesh>
-
-        {/* CLICK SHIELD - At Batsman Position */}
-        {points?.wicket && (
-            <mesh 
-                ref={shieldRef}
-                position={[
-                    points.wicket.position.x, 
-                    points.wicket.position.y + 1.2, 
-                    points.wicket.position.z
-                ]} 
-                onClick={handleBatSwing}
-            >
-                <planeGeometry args={[8, 6]} /> 
-                <meshBasicMaterial transparent opacity={0.0} side={THREE.DoubleSide} />
-            </mesh>
-        )}
-      </group>
-
-      {feedback && (
-          <Html position={[0, 1, -3]} center>
-              <div style={{ 
-                  color: feedback.color, 
-                  fontSize: '48px', 
-                  fontWeight: '900', 
-                  textShadow: '0px 4px 12px rgba(0,0,0,0.8)',
-                  whiteSpace: 'nowrap',
-                  fontFamily: 'sans-serif',
-                  fontStyle: 'italic',
-              }}>
-                  {feedback.text}
-              </div>
-          </Html>
-      )}
-    </>
+    <RigidBody 
+      ref={rigidBody} 
+      colliders="ball" 
+      restitution={0.7} // 0.7 is a good standard for a hard cricket ball
+      friction={0.5} 
+      linearDamping={0.1} // Air resistance (Drag)
+      ccd={true} // <--- CRITICAL: Continuous Collision Detection prevents tunneling
+      position={[0, -5, 0]} 
+    >
+      <mesh castShadow>
+        <sphereGeometry args={[0.036]} />
+        <meshStandardMaterial color="#8B0000" roughness={0.3} />
+      </mesh>
+    </RigidBody>
   );
 }
 
-/* ---------- MAIN PAGE ---------- */
-export default function CricketPage() {
+// --- 3. Batsman Rig (Fixed Height) ---
+function BatsmanRig({ position, targetPosition }) {
+  const cameraRef = useRef();
+  
+  // FIXED: Eye height must be realistic (~1.2m for crouching stance)
+  // Your previous 0.001 was making it feel like lying on the floor.
+  const EYE_HEIGHT = 1.2; 
+  
+  useLayoutEffect(() => {
+    if (cameraRef.current && targetPosition) {
+      // Look at the bowler's release point (approx 2m high) for realistic view
+      cameraRef.current.lookAt(targetPosition.x, targetPosition.y + 2, targetPosition.z);
+    }
+  }, [targetPosition, position]); 
+
+  return (
+    <RigidBody position={[position.x, position.y + EYE_HEIGHT, position.z]} type="fixed" colliders="hull">
+      <CapsuleCollider args={[0.8, 0.3]} />
+      <PerspectiveCamera ref={cameraRef} makeDefault fov={55} position={[0, 0, 0]} />
+    </RigidBody>
+  );
+}
+
+// --- 4. Main Page ---
+export default function Cricket3DPage() {
   const [points, setPoints] = useState(null);
-
-  const handleSceneReady = (scene) => {
-    const bowler = scene.getObjectByName("BowlerPoint");
-    const batsman = scene.getObjectByName("BatsmanPoint");
-    const wicket = scene.getObjectByName("WicketTarget");
-
-    if (bowler && batsman && wicket) {
-        setPoints({ bowler, batsman, wicket });
-    }
-    
-    scene.traverse((child) => {
-        if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-        }
-    });
-  };
+  const [bowlTrigger, setBowlTrigger] = useState(0); 
 
   return (
-    <div style={{ height: "100vh", width: "100vw", background: "#111" }}>
-      <Canvas shadows="soft" camera={{ fov: 50 }} gl={{ toneMappingExposure: 1.1 }}>
-        
-        {/* LIGHTING */}
-        <ambientLight intensity={0.4} color="#b0c4de" />
-        <directionalLight 
-            position={[-5, 12, -5]} 
-            intensity={2.5} 
-            castShadow 
-            shadow-bias={-0.0001}
-            shadow-mapSize={[2048, 2048]} 
-        >
-            <orthographicCamera attach="shadow-camera" args={[-10, 10, 10, -10]} />
-        </directionalLight>
-        <directionalLight position={[5, 0, 5]} intensity={0.5} color="#ffd700" />
+    <div className="w-full h-screen bg-black relative">
+      <Canvas shadows>
+        <Suspense fallback={<Html center><div className="text-white">Loading...</div></Html>}>
+          <Environment files="/hdr/alps.hdr" background blur={0.6} />
+          <ambientLight intensity={0.4} />
+          <directionalLight position={[-10, 10, 5]} intensity={1.5} castShadow />
 
-        <Suspense fallback={<Loader />}>
-          <Environment preset="sunset" background blur={0.7} />
-          
-          <CricketGameSystem points={points} />
-          <FixedPovCamera points={points} />
-
-          <DracoGLBModel 
-            url="/models/cricket.glb" 
-            onSceneReady={handleSceneReady}
-          />
-          
-          <ContactShadows opacity={0.6} scale={20} blur={2.5} far={4} color="#000000" />
+          <Physics gravity={[0, -9.81, 0]}>
+            <Stadium onPointsLoaded={setPoints} />
+            
+            {points && (
+              <>
+                <BatsmanRig position={points.batsman} targetPosition={points.bowler} />
+                <Ball 
+                  startPos={points.bowler} 
+                  targetPos={points.wicket} 
+                  isBowling={bowlTrigger} 
+                />
+              </>
+            )}
+          </Physics>
         </Suspense>
       </Canvas>
+      
+      {/* Interaction UI */}
+      <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-10">
+        <button 
+          onClick={() => setBowlTrigger(p => p + 1)}
+          className="bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-10 rounded-full shadow-xl transition-all active:scale-95 uppercase tracking-widest text-lg"
+        >
+          Bowl Ball
+        </button>
+      </div>
 
-      <div className="absolute top-5 left-5 text-white pointer-events-none bg-black/30 p-4 rounded-xl backdrop-blur-md border border-white/10">
-         <h3 className="font-bold text-xl tracking-wider">PRO CRICKET PHYSICS</h3>
-         <p className="text-sm opacity-80 mt-1">Real Gravity & Collision</p>
-         <div className="mt-2 text-xs text-yellow-400">Tap screen to bat</div>
+      <div className="absolute top-6 left-6 text-white z-10 pointer-events-none">
+        <h1 className="text-2xl font-bold">Wicket Keeper View</h1>
+        <p className="opacity-75 text-sm">Real-time Physics Simulation</p>
       </div>
     </div>
   );
